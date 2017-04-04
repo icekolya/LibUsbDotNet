@@ -281,10 +281,27 @@ namespace LibUsbDotNet.Main
 
             if (!String.IsNullOrEmpty(mSerialNumber))
             {
-                if (String.IsNullOrEmpty(usbRegistry.SymbolicName)) return false;
+                // Some operating systems do not give the device serial number in the SymbolicName field
+                // Therefore, a device request for VID, PID and serial number always fails.
+                // The libusb driver version does not affect this problem.
+                // I propose to check the serial number not only in the UsbSymbolicName object
+                // but also in the UsbDevice structure (as it is done in the predicate below. See 'Check(UsbDevice usbDevice)')
+                // This decision is for sure - a crutch. But it works.
+                bool symbolicNameEquals = false;
+                bool usbDeviceInfoEquals = false;
 
-                UsbSymbolicName usbSymbolicName = UsbSymbolicName.Parse(usbRegistry.SymbolicName);
-                if (mSerialNumber != usbSymbolicName.SerialNumber) return false;
+                // Check if equals by SymbolicName
+                if (!String.IsNullOrEmpty(usbRegistry.SymbolicName))
+                {
+                    UsbSymbolicName usbSymbolicName = UsbSymbolicName.Parse(usbRegistry.SymbolicName);
+                    if (mSerialNumber == usbSymbolicName.SerialNumber) symbolicNameEquals = true;
+                }
+                // Check if equals by 'UsbDevice' Info.SerialString
+                if (!String.IsNullOrEmpty(mSerialNumber))
+                    if (mSerialNumber == usbRegistry.Device.Info.SerialString) usbDeviceInfoEquals = true;
+                // If in both cases there were no coincidences...
+                if (!symbolicNameEquals && !usbDeviceInfoEquals)
+                    return false;
             }
             if (mDeviceInterfaceGuid != Guid.Empty)
             {
